@@ -261,7 +261,8 @@ describe('credits', () => {
     render(<App />)
     await user.click(await screen.findByRole('button', { name: 'About and credits' }))
 
-    expect(await screen.findByText(/WordNet 3\.0/)).toBeInTheDocument()
+    expect(await screen.findByText(/Permission to use, copy, modify and distribute/)).toBeInTheDocument()
+    expect(screen.getByText(/UNIVERSITY MAKES NO REPRESENTATIONS OR WARRANTIES/)).toBeInTheDocument()
     expect(screen.getByText(/Princeton University/, { selector: 'a' })).toBeInTheDocument()
   })
 })

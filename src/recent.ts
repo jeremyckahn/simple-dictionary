@@ -24,6 +24,19 @@ export const addRecent = (word: string): string[] => {
   return next
 }
 
+/** Drops `word` from the history and persists. Returns the new list. */
+export const removeRecent = (word: string): string[] => {
+  const next = loadRecent().filter(w => w !== word)
+
+  try {
+    localStorage.setItem(KEY, JSON.stringify(next))
+  } catch {
+    // See addRecent.
+  }
+
+  return next
+}
+
 export const clearRecent = (): void => {
   try {
     localStorage.removeItem(KEY)

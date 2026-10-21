@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
-import { addRecent, clearRecent, loadRecent, MAX_RECENT } from './recent.ts'
+import { addRecent, clearRecent, loadRecent, MAX_RECENT, removeRecent } from './recent.ts'
 
 beforeEach(() => localStorage.clear())
 
@@ -30,6 +30,21 @@ describe('recent searches', () => {
 
     localStorage.setItem('recent-searches', '[1,"ok"]')
     expect(loadRecent()).toEqual(['ok'])
+  })
+
+  it('removes one word, keeping the order of the rest', () => {
+    addRecent('a')
+    addRecent('b')
+    addRecent('c')
+
+    expect(removeRecent('b')).toEqual(['c', 'a'])
+    expect(loadRecent()).toEqual(['c', 'a'])
+  })
+
+  it('ignores removing a word that is not in the history', () => {
+    addRecent('a')
+
+    expect(removeRecent('zzz')).toEqual(['a'])
   })
 
   it('clears', () => {

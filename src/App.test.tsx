@@ -254,6 +254,125 @@ describe('searching', () => {
   })
 })
 
+describe('home', () => {
+  beforeEach(() => {
+    mocks.installed = true
+  })
+
+  it('makes the title a link to the home page', async () => {
+    render(<App />)
+
+    expect(await screen.findByRole('link', { name: 'Simple Dictionary' })).toHaveAttribute('href', '/')
+  })
+
+  it('returns from an entry to the home page when the title is clicked', async () => {
+    const user = userEvent.setup()
+
+    render(<App />)
+    await user.type(await searchBox(), 'run{Enter}')
+    await screen.findByRole('heading', { level: 1, name: 'run' })
+
+    await user.click(screen.getByRole('link', { name: 'Simple Dictionary' }))
+
+    await waitFor(() => expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument())
+    expect(location.search).toBe('')
+    expect(await searchBox()).toHaveValue('')
+    expect(screen.getByText(/A quiet little dictionary/)).toBeInTheDocument()
+
+    // The previous entry is one step back in history.
+    history.back()
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'run' })).toBeInTheDocument()
+  })
+
+  it('also clears half-typed text when already on the home page', async () => {
+    const user = userEvent.setup()
+
+    render(<App />)
+    await user.type(await searchBox(), 'mo')
+    await user.click(screen.getByRole('link', { name: 'Simple Dictionary' }))
+
+    expect(await searchBox()).toHaveValue('')
+  })
+
+  it('leaves modified clicks to the browser', async () => {
+    const user = userEvent.setup()
+
+    render(<App />)
+    await user.type(await searchBox(), 'run{Enter}')
+    await screen.findByRole('heading', { level: 1, name: 'run' })
+
+    await user.keyboard('{Control>}')
+    await user.click(screen.getByRole('link', { name: 'Simple Dictionary' }))
+    await user.keyboard('{/Control}')
+
+    expect(screen.getByRole('heading', { level: 1, name: 'run' })).toBeInTheDocument()
+  })
+})
+
+describe('history', () => {
+  beforeEach(() => {
+    mocks.installed = true
+    localStorage.setItem('recent-searches', JSON.stringify(['run', 'mouse', 'sprint']))
+  })
+
+  it('removes a single word from the history without searching for it', async () => {
+    const user = userEvent.setup()
+
+    render(<App />)
+    // The box is focused on load, so the recent searches are already listed.
+    await searchBox()
+    await user.click(await screen.findByRole('button', { name: 'Remove “mouse” from history' }))
+
+    expect(screen.queryByRole('option', { name: /mouse/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /run/ })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /sprint/ })).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('recent-searches')!)).toEqual(['run', 'sprint'])
+
+    // Removing is not selecting: no lookup happened and the list is still open.
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument()
+    expect(location.search).toBe('')
+  })
+
+  it('removes the highlighted word with Shift+Delete', async () => {
+    const user = userEvent.setup()
+
+    render(<App />)
+    await searchBox()
+    await screen.findByRole('option', { name: /run/ })
+    await user.keyboard('{ArrowDown}{ArrowDown}')
+    await user.keyboard('{Shift>}{Delete}{/Shift}')
+
+    expect(screen.queryByRole('option', { name: /mouse/ })).not.toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('recent-searches')!)).toEqual(['run', 'sprint'])
+  })
+
+  it('does not offer to remove suggestions while typing', async () => {
+    const user = userEvent.setup()
+
+    render(<App />)
+    await user.type(await searchBox(), 'mo')
+
+    expect(await screen.findByRole('option', { name: 'mouse' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /from history/ })).not.toBeInTheDocument()
+  })
+
+  it('keeps a removed word out after reloading', async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(<App />)
+
+    await searchBox()
+    await user.click(await screen.findByRole('button', { name: 'Remove “run” from history' }))
+    unmount()
+
+    render(<App />)
+    await searchBox()
+
+    expect(await screen.findByRole('option', { name: /mouse/ })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /run/ })).not.toBeInTheDocument()
+  })
+})
+
 describe('credits', () => {
   it('links to the source code near the top, before the credits', async () => {
     const user = userEvent.setup()

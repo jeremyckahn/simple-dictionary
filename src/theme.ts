@@ -4,12 +4,12 @@ const serif =
   '"Literata Variable", Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif'
 
 /**
- * "Cream paper and ink": warm paper, brown-black text, an oxblood accent by
- * day and lamplit amber by night. Light/dark follows the system setting (no
- * manual toggle in v1). Text pairs are all WCAG AA or better.
+ * "Cream paper and ink": warm paper, brown-black text, an oxblood accent.
+ * Light only, whatever the system setting says. Text pairs are all WCAG AA or
+ * better.
  */
 export const theme = createTheme({
-  cssVariables: { colorSchemeSelector: 'media' },
+  cssVariables: true,
   colorSchemes: {
     light: {
       palette: {
@@ -19,14 +19,7 @@ export const theme = createTheme({
         divider: 'rgba(74, 52, 30, 0.2)',
       },
     },
-    dark: {
-      palette: {
-        primary: { main: '#e2a877', contrastText: '#241c14' },
-        background: { default: '#1b1611', paper: '#241d16' },
-        text: { primary: '#ece1cc', secondary: '#b8a98f' },
-        divider: 'rgba(236, 225, 204, 0.18)',
-      },
-    },
+    dark: false,
   },
   shape: { borderRadius: 12 },
   typography: {

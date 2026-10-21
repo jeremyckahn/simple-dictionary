@@ -1,10 +1,11 @@
+import CloseIcon from '@mui/icons-material/Close'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
 import Autocomplete from '@mui/material/Autocomplete'
 import IconButton from '@mui/material/IconButton'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { Dictionary } from '../data/index.ts'
 
 interface Props {
@@ -13,10 +14,12 @@ interface Props {
   value: string
   recent: string[]
   onSearch: (word: string) => void
+  onRemoveRecent: (word: string) => void
 }
 
-export const SearchBox = ({ dictionary, value, recent, onSearch }: Props) => {
+export const SearchBox = ({ dictionary, value, recent, onSearch, onRemoveRecent }: Props) => {
   const [input, setInput] = useState(value)
+  const highlighted = useRef<string | null>(null)
   const [lastValue, setLastValue] = useState(value)
 
   // Keep the box in sync when navigation (back/forward, chips, random) changes the query.
@@ -25,7 +28,13 @@ export const SearchBox = ({ dictionary, value, recent, onSearch }: Props) => {
     setInput(value)
   }
 
-  const options = input.trim() ? dictionary.suggest(input) : recent
+  const showingRecent = !input.trim()
+  const options = showingRecent ? recent : dictionary.suggest(input)
+
+  const remove = (word: string) => {
+    highlighted.current = null
+    onRemoveRecent(word)
+  }
 
   const search = (word: string) => {
     const trimmed = word.trim()
@@ -51,7 +60,41 @@ export const SearchBox = ({ dictionary, value, recent, onSearch }: Props) => {
             search(v)
           }
         }}
-        groupBy={() => (input.trim() ? '' : 'Recent searches')}
+        onHighlightChange={(_, option) => {
+          highlighted.current = option
+        }}
+        // Like a browser's address bar: Shift+Delete forgets the highlighted recent search.
+        onKeyDown={event => {
+          if (event.key === 'Delete' && event.shiftKey && showingRecent && highlighted.current) {
+            event.preventDefault()
+            remove(highlighted.current)
+          }
+        }}
+        renderOption={(props, option) => {
+          const { key, ...rest } = props
+
+          return (
+            <li key={key} {...rest}>
+              <span style={{ flex: 1 }}>{option}</span>
+              {showingRecent && (
+                <IconButton
+                  size="small"
+                  edge="end"
+                  aria-label={`Remove “${option}” from history`}
+                  // Keep focus in the search box so the list stays open.
+                  onMouseDown={event => event.preventDefault()}
+                  onClick={event => {
+                    event.stopPropagation()
+                    remove(option)
+                  }}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              )}
+            </li>
+          )
+        }}
+        groupBy={() => (showingRecent ? 'Recent searches' : '')}
         renderGroup={params =>
           params.group ? (
             <li key={params.key}>

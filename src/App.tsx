@@ -1,6 +1,5 @@
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import Alert from '@mui/material/Alert'
-import AppBar from '@mui/material/AppBar'
 import InstallMobileIcon from '@mui/icons-material/InstallMobile'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
@@ -9,12 +8,12 @@ import CssBaseline from '@mui/material/CssBaseline'
 import IconButton from '@mui/material/IconButton'
 import Stack from '@mui/material/Stack'
 import { ThemeProvider } from '@mui/material/styles'
-import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import { useEffect, useState } from 'react'
 import { PwaPrompts } from './components/PwaPrompts.tsx'
 import { UpdateBanner } from './components/UpdateBanner.tsx'
 import { CreditsDialog } from './components/CreditsDialog.tsx'
+import { Ornament } from './components/Ornament.tsx'
 import { EntryView } from './components/EntryView.tsx'
 import { SearchBox } from './components/SearchBox.tsx'
 import {
@@ -78,6 +77,11 @@ const Search = ({ dictionary, onStale }: SearchProps) => {
         onDismiss={update.dismiss}
       />
       <SearchBox dictionary={dictionary} value={query} recent={recent} onSearch={setQuery} />
+      {!query && (
+        <Typography color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', pt: 2 }}>
+          A quiet little dictionary. Type a word to begin, or open a page at random.
+        </Typography>
+      )}
       {current?.result && <EntryView result={current.result} onLookup={setQuery} />}
       {current && !current.result && (
         <Stack spacing={1}>
@@ -101,9 +105,12 @@ const App = () => {
   return (
     <ThemeProvider theme={theme} noSsr>
       <CssBaseline />
-      <AppBar position="static" color="transparent" elevation={0}>
-        <Toolbar>
-          <Typography variant="h6" component="p" sx={{ flexGrow: 1 }}>
+      <Container maxWidth="sm" component="header" sx={{ pt: { xs: 2, sm: 4 } }}>
+        <Stack direction="row" sx={{ alignItems: 'center' }}>
+          <Typography
+            component="p"
+            sx={{ flexGrow: 1, fontSize: '1.35rem', fontWeight: 600, letterSpacing: '0.01em' }}
+          >
             Simple Dictionary
           </Typography>
           {canInstall && (
@@ -114,9 +121,10 @@ const App = () => {
           <IconButton aria-label="About and credits" onClick={() => setCreditsOpen(true)}>
             <InfoOutlinedIcon />
           </IconButton>
-        </Toolbar>
-      </AppBar>
-      <Container maxWidth="sm" component="main" sx={{ pb: 6 }}>
+        </Stack>
+        <Ornament my={1} />
+      </Container>
+      <Container maxWidth="sm" component="main" sx={{ pt: 2, pb: 8 }}>
         {state.status === 'loading' && <LoadingScreen />}
         {state.status === 'needs-download' && (
           <ConsentScreen

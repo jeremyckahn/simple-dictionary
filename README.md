@@ -44,7 +44,8 @@ IndexedDB.
 
 `npm run test:e2e` builds the production app, serves it with `vite preview`,
 and drives it in Chromium: consent before download, download and install,
-resuming an interrupted download, then lookups (prefix suggestions, inflections,
+resuming an interrupted download, downloading from a server that re-compresses
+responses (as GitHub Pages and Vercel do), then lookups (prefix suggestions, inflections,
 deep links, synonyms, back/forward) with the network turned off. Install the
 browser once with `npx playwright install chromium`, or point
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` at an existing Chromium. CI runs the

@@ -4,7 +4,10 @@
 Princeton WordNet into the single file the app downloads. Output goes to
 `dist/` (or the directory given as the first argument):
 
-- `dictionary.<version>.json.gz` — the data, gzip level 9. `<version>` is the
+- `dictionary.<version>.bin` — the data, gzip level 9 (the `.bin` name is
+  deliberate: a `.gz` name makes many static hosts add `Content-Encoding:
+  gzip`, so browsers would decode the bytes before the app can verify, count or
+  resume them). `<version>` is the
   first 16 hex digits of the SHA-256 of the uncompressed JSON.
 - `dictionary-manifest.json` — file name, version, SHA-256 of the JSON and of
   the `.gz`, compressed and uncompressed byte sizes, and word, sense and

@@ -89,6 +89,13 @@ export const useDictionarySetup = () => {
     }
   }, [])
 
+  /** Re-reads the installed dictionary, e.g. after an update replaced it. */
+  const refresh = useCallback(async () => {
+    const dictionary = await Dictionary.open(await getDb())
+
+    if (dictionary) setState({ status: 'ready', dictionary })
+  }, [])
+
   const cancel = useCallback(() => abortRef.current?.abort(), [])
 
   const decline = useCallback(
@@ -102,5 +109,5 @@ export const useDictionarySetup = () => {
     []
   )
 
-  return { state, download, cancel, decline, reconsider, retry }
+  return { state, download, cancel, decline, reconsider, retry, refresh }
 }

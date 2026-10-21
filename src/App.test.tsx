@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App.tsx'
@@ -8,7 +8,7 @@ import type { Entry, Manifest } from './data/index.ts'
 const manifest = {
   format: 1,
   version: 'v1',
-  file: 'dictionary.v1.json.gz',
+  file: 'dictionary.v1.bin',
   compressedBytes: 8_725_231,
   wordCount: 147_306,
 } as Manifest
@@ -22,6 +22,7 @@ const words = Object.keys(entries).sort()
 const inflections: Record<string, string> = { ran: 'run', mice: 'mouse' }
 
 const fakeDictionary = {
+  info: { manifest: { version: 'v1' } },
   suggest: (prefix: string) => words.filter(w => w.startsWith(prefix.toLowerCase())),
   random: () => 'mouse',
   lookup: async (query: string) => {
@@ -35,13 +36,17 @@ const fakeDictionary = {
 const mocks = vi.hoisted(() => ({
   installed: false,
   partialBytes: 0,
+  manifestVersion: 'v1',
+  needRefresh: false,
+  updateServiceWorker: undefined as unknown as ReturnType<typeof vi.fn>,
   download: undefined as undefined | ((o: { onProgress: (p: unknown) => void; signal: AbortSignal }) => Promise<void>),
 }))
 
 vi.mock('./data/index.ts', () => ({
   openStore: async () => ({}),
   getPartialBytes: async () => mocks.partialBytes,
-  fetchManifest: async () => manifest,
+  fetchManifest: async () => ({ ...manifest, version: mocks.manifestVersion }),
+  DictionaryChangedError: class DictionaryChangedError extends Error {},
   Dictionary: {
     open: async () => (mocks.installed ? fakeDictionary : undefined),
   },
@@ -53,10 +58,21 @@ vi.mock('./data/index.ts', () => ({
   },
 }))
 
+vi.mock('virtual:pwa-register/react', () => ({
+  useRegisterSW: () => ({
+    needRefresh: [mocks.needRefresh, vi.fn()],
+    offlineReady: [false, vi.fn()],
+    updateServiceWorker: mocks.updateServiceWorker,
+  }),
+}))
+
 const searchBox = () => screen.findByRole('combobox', { name: 'Search the dictionary' })
 
 beforeEach(() => {
   mocks.installed = false
+  mocks.manifestVersion = 'v1'
+  mocks.needRefresh = false
+  mocks.updateServiceWorker = vi.fn()
   mocks.partialBytes = 0
   mocks.download = undefined
   localStorage.clear()
@@ -247,5 +263,89 @@ describe('credits', () => {
 
     expect(await screen.findByText(/WordNet 3\.0/)).toBeInTheDocument()
     expect(screen.getByText(/Princeton University/, { selector: 'a' })).toBeInTheDocument()
+  })
+})
+
+describe('PWA', () => {
+  beforeEach(() => {
+    mocks.installed = true
+  })
+
+  it('offers an install button when the browser allows it', async () => {
+    const user = userEvent.setup()
+    const prompt = vi.fn(async () => {})
+
+    render(<App />)
+    await searchBox()
+
+    expect(screen.queryByRole('button', { name: 'Install' })).not.toBeInTheDocument()
+
+    act(() => {
+      const event = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
+        prompt,
+        userChoice: Promise.resolve({ outcome: 'accepted' }),
+      })
+
+      window.dispatchEvent(event)
+    })
+    await user.click(await screen.findByRole('button', { name: 'Install' }))
+
+    expect(prompt).toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Install' })).not.toBeInTheDocument())
+  })
+
+  it('offers a new app version and reloads on request', async () => {
+    const user = userEvent.setup()
+
+    mocks.needRefresh = true
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'Reload' }))
+
+    expect(mocks.updateServiceWorker).toHaveBeenCalledWith(true)
+  })
+
+  it('does not mention updates when the dictionary is current', async () => {
+    render(<App />)
+    await searchBox()
+
+    expect(screen.queryByText(/dictionary update/)).not.toBeInTheDocument()
+  })
+
+  it('offers a dictionary update, keeps searching, and swaps in the new data', async () => {
+    const user = userEvent.setup()
+
+    mocks.manifestVersion = 'v2'
+    render(<App />)
+
+    expect(await screen.findByText(/A dictionary update is available \(8\.3 MB\)/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Update' }))
+
+    await waitFor(() => expect(screen.queryByText(/dictionary update/)).not.toBeInTheDocument())
+    expect(await searchBox()).toBeInTheDocument()
+  })
+
+  it('can postpone a dictionary update', async () => {
+    const user = userEvent.setup()
+
+    mocks.manifestVersion = 'v2'
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'Later' }))
+
+    expect(screen.queryByText(/dictionary update/)).not.toBeInTheDocument()
+  })
+
+  it('shows a failed update with retry', async () => {
+    const user = userEvent.setup()
+
+    mocks.manifestVersion = 'v2'
+    mocks.download = async () => {
+      throw new Error('boom')
+    }
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'Update' }))
+
+    expect(await screen.findByText(/update failed: boom/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
   })
 })

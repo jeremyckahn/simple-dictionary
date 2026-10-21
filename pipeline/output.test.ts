@@ -30,7 +30,7 @@ describe('buildOutput', () => {
     const json = gunzipSync(output.compressed)
     expect(output.manifest.sha256).toBe(sha256Hex(json))
     expect(output.manifest.version).toBe(output.manifest.sha256.slice(0, 16))
-    expect(output.fileName).toBe(`dictionary.${output.manifest.version}.json.gz`)
+    expect(output.fileName).toBe(`dictionary.${output.manifest.version}.bin`)
   })
 
   it('reports exact sizes and counts in the manifest', () => {

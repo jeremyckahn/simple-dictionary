@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Placeholder "Aa" icon. Replace this one file to rebrand; PNGs are generated from it at build time (pwa-assets.config.ts). -->
+  <rect width="512" height="512" fill="#1f5fbf"/>
+  <g fill="none" stroke="#fff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M118 372 L196 140 L274 372 M144 296 L248 296"/>
+    <circle cx="352" cy="318" r="50"/>
+    <path d="M402 268 L402 372"/>
+  </g>
+</svg>

@@ -10,7 +10,7 @@ License: GPL-2.0-only. Dictionary data: Princeton WordNet (see Credits).
 
 | Area | Decision |
 |---|---|
-| **Data** | Princeton WordNet 3.0, pinned and verified by SHA-256 (fetched from an npm tarball that bundles Princeton's database and morphology exception lists). Converted at build time into a single compressed, content-hashed file (e.g. `dictionary.<hash>.json.gz`) emitted into `dist/`. The generated file is not committed. |
+| **Data** | Princeton WordNet 3.0, pinned and verified by SHA-256 (fetched from an npm tarball that bundles Princeton's database and morphology exception lists). Converted at build time into a single compressed, content-hashed file (e.g. `dictionary.<hash>.bin` (gzip inside; not named `.gz` so hosts don't add `Content-Encoding`)) emitted into `dist/`. The generated file is not committed. |
 | **Entry view** | Word, then each part of speech with numbered definitions, example sentences (where they exist), and tappable synonym chips that trigger a lookup. No antonyms or related-word hierarchy in v1. No pronunciation or etymology (not in WordNet). |
 | **Search** | Case-insensitive prefix suggestions (about 10) as the user types. Inflected forms resolve to their base word ("ran" → "run", "mice" → "mouse", "running" → "run"); inflections are precomputed at build time, not computed in the browser. No typo-tolerance in v1 (possible later; it is a search-time feature and does not change the data format). |
 | **Download flow** | See below. |

@@ -1,0 +1,88 @@
+import 'fake-indexeddb/auto'
+import { beforeAll, describe, expect, it } from 'vitest'
+import { Dictionary } from './dictionary.ts'
+import { downloadAndInstall } from './download.ts'
+import { deleteDictionary, installDictionary, openStore } from './store.ts'
+import { fixtureFile, freshDbName, serveFixture } from './test-utils.ts'
+import type { Entry } from './types.ts'
+
+let dictionary: Dictionary
+
+beforeAll(async () => {
+  const { fetchFn, manifest } = await serveFixture()
+  const db = await openStore(freshDbName())
+
+  await downloadAndInstall(db, manifest, { fetchFn })
+  dictionary = (await Dictionary.open(db))!
+})
+
+describe('Dictionary', () => {
+  it('is undefined when nothing is installed', async () => {
+    expect(await Dictionary.open(await openStore(freshDbName()))).toBeUndefined()
+  })
+
+  it('exposes the license', () => {
+    expect(dictionary.info.license).toBe('test license')
+  })
+
+  it('suggests by prefix', () => {
+    expect(dictionary.suggest('ap')).toEqual(['apple', 'apply', 'apt'])
+    expect(dictionary.suggest('APP', 1)).toEqual(['apple'])
+  })
+
+  it('looks up an exact headword', async () => {
+    const result = await dictionary.lookup('  Apple ')
+
+    expect(result?.word).toBe('apple')
+    expect(result?.entry[0][1][0][0]).toBe('a fruit')
+    expect(result?.inflectedFrom).toBeUndefined()
+  })
+
+  it('resolves inflected forms to their base word', async () => {
+    expect(await dictionary.lookup('ran')).toMatchObject({ word: 'run', inflectedFrom: 'ran' })
+    expect(await dictionary.lookup('mice')).toMatchObject({ word: 'mouse', inflectedFrom: 'mice' })
+    expect(await dictionary.lookup('running')).toMatchObject({ word: 'run' })
+  })
+
+  it('prefers an exact headword over an inflection of another word', async () => {
+    expect((await dictionary.lookup('saw'))?.word).toBe('saw')
+  })
+
+  it('returns undefined for unknown or empty queries', async () => {
+    expect(await dictionary.lookup('zzz')).toBeUndefined()
+    expect(await dictionary.lookup('   ')).toBeUndefined()
+  })
+
+  it('picks a random headword that can be looked up', async () => {
+    expect(await dictionary.lookup(dictionary.random())).toBeDefined()
+  })
+
+  it('reads entries across storage blocks', async () => {
+    const db = await openStore(freshDbName())
+    const words = Array.from({ length: 600 }, (_, i) => `w${String(i).padStart(4, '0')}`)
+    const file = {
+      ...fixtureFile(),
+      words,
+      entries: words.map(w => [['n', [[`def of ${w}`, [], []]]]] as Entry),
+      inflections: {},
+    }
+
+    await installDictionary(db, (await serveFixture()).manifest, file)
+
+    const opened = (await Dictionary.open(db))!
+
+    for (const i of [0, 255, 256, 511, 512, 599]) {
+      expect((await opened.lookup(words[i]))?.entry[0][1][0][0]).toBe(`def of ${words[i]}`)
+    }
+  })
+
+  it('can be deleted', async () => {
+    const db = await openStore(freshDbName())
+    const { fetchFn, manifest } = await serveFixture()
+
+    await downloadAndInstall(db, manifest, { fetchFn })
+    await deleteDictionary(db)
+
+    expect(await Dictionary.open(db)).toBeUndefined()
+  })
+})

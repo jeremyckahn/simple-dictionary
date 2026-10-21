@@ -40,7 +40,15 @@ export const theme = createTheme({
   components: {
     MuiCssBaseline: {
       styleOverrides: theme => ({
-        body: { fontKerning: 'normal', fontVariantLigatures: 'common-ligatures' },
+        // The page must paint the whole window itself: relying on the browser to
+        // propagate the body's background to the canvas leaves a black strip below
+        // short pages when anything else (an extension, forced dark mode) paints <html>.
+        html: { backgroundColor: theme.vars.palette.background.default },
+        body: {
+          minHeight: '100dvh',
+          fontKerning: 'normal',
+          fontVariantLigatures: 'common-ligatures',
+        },
         '::selection': {
           backgroundColor: `color-mix(in srgb, ${theme.vars.palette.primary.main} 28%, transparent)`,
         },

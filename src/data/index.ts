@@ -4,5 +4,11 @@ export {
   downloadAndInstall,
   fetchManifest,
 } from './download.ts'
-export { deleteDictionary, getInstalled, getPartialBytes, openStore } from './store.ts'
+export {
+  DictionaryChangedError,
+  deleteDictionary,
+  getInstalled,
+  getPartialBytes,
+  openStore,
+} from './store.ts'
 export type * from './types.ts'

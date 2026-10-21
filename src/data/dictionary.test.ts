@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { Dictionary } from './dictionary.ts'
 import { downloadAndInstall } from './download.ts'
-import { deleteDictionary, installDictionary, openStore } from './store.ts'
+import { DictionaryChangedError, deleteDictionary, installDictionary, openStore } from './store.ts'
 import { fixtureFile, freshDbName, serveFixture } from './test-utils.ts'
 import type { Entry } from './types.ts'
 
@@ -98,6 +98,22 @@ describe('Dictionary', () => {
 
     expect(await opened.lookup('form2000')).toBeUndefined()
     expect(await opened.lookup('hasownproperty')).toBeUndefined()
+  })
+
+  it('refuses to mix an old word list with data from a newer install', async () => {
+    const db = await openStore(freshDbName())
+    const { manifest } = await serveFixture()
+
+    await installDictionary(db, manifest, fixtureFile())
+
+    const old = (await Dictionary.open(db))!
+    const newer = { ...fixtureFile(), words: ['aaa', ...fixtureFile().words] }
+
+    newer.entries = [[['n', [['new first entry', [], []]]]], ...fixtureFile().entries]
+    await installDictionary(db, { ...manifest, version: 'newer' }, newer)
+
+    await expect(old.lookup('apple')).rejects.toThrow(DictionaryChangedError)
+    expect((await (await Dictionary.open(db))!.lookup('apple'))?.entry[0][1][0][0]).toBe('a fruit')
   })
 
   it('can be deleted', async () => {

@@ -76,7 +76,7 @@ export class Dictionary {
   }
 
   private async resultAt(index: number): Promise<LookupResult> {
-    const entry = await getEntry(this.db, index)
+    const entry = await getEntry(this.db, index, this.info.manifest.version)
 
     if (!entry) throw new Error(`Dictionary is missing entry ${index}`)
 

@@ -171,11 +171,31 @@ export const installDictionary = async (
   await Promise.all(writes)
 }
 
+/** Thrown when the stored dictionary was replaced after a `Dictionary` was opened. */
+export class DictionaryChangedError extends Error {
+  constructor() {
+    super('The dictionary was updated')
+    this.name = 'DictionaryChangedError'
+  }
+}
+
+/**
+ * Reads one entry. The installed version is checked in the same transaction,
+ * so an update that landed since the caller opened its word list can never
+ * pair the old word index with new entry blocks.
+ */
 export const getEntry = async (
   db: DictionaryStore,
-  index: number
+  index: number,
+  expectedVersion: string
 ): Promise<Entry | undefined> => {
-  const block = await db.get('blocks', Math.floor(index / ENTRIES_PER_BLOCK))
+  const tx = db.transaction(['meta', 'blocks'])
+  const [installed, block] = await Promise.all([
+    tx.objectStore('meta').get('installed') as Promise<InstalledInfo | undefined>,
+    tx.objectStore('blocks').get(Math.floor(index / ENTRIES_PER_BLOCK)),
+  ])
+
+  if (installed?.manifest.version !== expectedVersion) throw new DictionaryChangedError()
 
   return block?.[index % ENTRIES_PER_BLOCK]
 }

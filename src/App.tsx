@@ -104,7 +104,7 @@ const App = () => {
 
   return (
     <ThemeProvider theme={theme} noSsr>
-      <CssBaseline />
+      <CssBaseline enableColorScheme />
       <Container maxWidth="sm" component="header" sx={{ pt: { xs: 2, sm: 4 } }}>
         <Stack direction="row" sx={{ alignItems: 'center' }}>
           <Typography

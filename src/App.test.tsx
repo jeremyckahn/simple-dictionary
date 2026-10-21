@@ -255,6 +255,21 @@ describe('searching', () => {
 })
 
 describe('credits', () => {
+  it('links to the source code near the top, before the credits', async () => {
+    const user = userEvent.setup()
+
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'About and credits' }))
+
+    const link = await screen.findByRole('link', { name: /View the source code on GitHub/ })
+    const wordnet = screen.getByRole('link', { name: /Princeton University's WordNet/ })
+
+    expect(link).toHaveAttribute('href', 'https://github.com/jeremyckahn/simple-dictionary')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noreferrer'))
+    expect(link.compareDocumentPosition(wordnet) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('shows the WordNet license notice', async () => {
     const user = userEvent.setup()
 

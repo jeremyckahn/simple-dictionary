@@ -15,7 +15,7 @@ License: GPL-2.0-only. Dictionary data: Princeton WordNet (see Credits).
 | **Search** | Case-insensitive prefix suggestions (about 10) as the user types. Inflected forms resolve to their base word ("ran" → "run", "mice" → "mouse", "running" → "run"); inflections are precomputed at build time, not computed in the browser. No typo-tolerance in v1 (possible later; it is a search-time feature and does not change the data format). |
 | **Download flow** | See below. |
 | **Storage** | IndexedDB via `idb`, with a sorted word index held in memory for instant prefix lookups. |
-| **Stack** | TypeScript, React, Vite, npm. MUI for UI, theming (light/dark follows the system) and `Autocomplete`, fed from our own prefix index rather than MUI's built-in option filtering. `vite-plugin-pwa` (Workbox). Vitest for unit tests; Playwright for end-to-end. |
+| **Stack** | TypeScript, React, Vite, npm. MUI for UI, theming (light only) and `Autocomplete`, fed from our own prefix index rather than MUI's built-in option filtering. `vite-plugin-pwa` (Workbox). Vitest for unit tests; Playwright for end-to-end. |
 | **Branding** | Name "Simple Dictionary", short name "Dictionary". Placeholder "Aa" icon generated from a single SVG source (192, 512 and maskable PNGs); replaceable later with a one-file change. |
 | **Extras in v1** | Deep links (`/?q=word`), browser back/forward, recent searches (shown when the empty search box is focused; stored locally), and a random-word button. Favorites, word of the day, and sharing are out of scope for v1. |
 | **Credits** | An about/credits section containing the Princeton WordNet license notice. |

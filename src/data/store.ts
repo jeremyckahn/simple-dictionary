@@ -4,6 +4,20 @@ import type { DictionaryFile, Entry, Manifest } from './types.ts'
 export const DB_NAME = 'simple-dictionary'
 const DB_VERSION = 1
 
+/** Inflections are hashed into this many buckets (one record each). */
+export const INFLECTION_BUCKETS = 512
+
+/** Stable FNV-1a hash; the bucket layout is persisted, so never change it casually. */
+export const inflectionBucket = (form: string): number => {
+  let hash = 0x811c9dc5
+
+  for (let i = 0; i < form.length; i++) {
+    hash = Math.imul(hash ^ form.charCodeAt(i), 0x01000193)
+  }
+
+  return (hash >>> 0) % INFLECTION_BUCKETS
+}
+
 /** Entries are stored in blocks to keep the record count (and write time) low. */
 export const ENTRIES_PER_BLOCK = 256
 
@@ -22,8 +36,8 @@ interface DictionaryDB extends DBSchema {
   }
   /** Entry blocks, keyed by block number. */
   blocks: { key: number; value: Entry[] }
-  /** Inflected form -> base headwords. */
-  inflections: { key: string; value: string[] }
+  /** `[form, base headwords]` pairs, bucketed by `inflectionBucket(form)`. */
+  inflections: { key: number; value: Array<[string, string[]]> }
   /** Raw downloaded chunks awaiting unpacking, keyed `${version}:${index}`. */
   chunks: { key: string; value: Uint8Array }
 }
@@ -57,6 +71,10 @@ export const getPartial = async (
   db: DictionaryStore
 ): Promise<PartialDownload | undefined> =>
   (await db.get('meta', 'partial')) as PartialDownload | undefined
+
+/** Bytes of an interrupted download that a retry can resume from. */
+export const getPartialBytes = async (db: DictionaryStore): Promise<number> =>
+  (await getPartial(db))?.receivedBytes ?? 0
 
 export const putChunk = async (
   db: DictionaryStore,
@@ -131,9 +149,16 @@ export const installDictionary = async (
     )
   }
 
-  for (const [form, bases] of Object.entries(file.inflections)) {
-    writes.push(inflections.put(bases, form))
+  const buckets: Array<Array<[string, string[]]>> = Array.from(
+    { length: INFLECTION_BUCKETS },
+    () => []
+  )
+
+  for (const pair of Object.entries(file.inflections)) {
+    buckets[inflectionBucket(pair[0])].push(pair)
   }
+
+  buckets.forEach((pairs, i) => writes.push(inflections.put(pairs, i)))
 
   writes.push(
     meta.put(file.words, 'words'),
@@ -155,10 +180,11 @@ export const getEntry = async (
   return block?.[index % ENTRIES_PER_BLOCK]
 }
 
-export const getInflection = (
+export const getInflection = async (
   db: DictionaryStore,
   form: string
-): Promise<string[] | undefined> => db.get('inflections', form)
+): Promise<string[] | undefined> =>
+  (await db.get('inflections', inflectionBucket(form)))?.find(([f]) => f === form)?.[1]
 
 export const deleteDictionary = async (db: DictionaryStore): Promise<void> => {
   const tx = db.transaction(['meta', 'blocks', 'inflections', 'chunks'], 'readwrite')

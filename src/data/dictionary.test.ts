@@ -76,6 +76,30 @@ describe('Dictionary', () => {
     }
   })
 
+  it('resolves many inflections across buckets, including awkward keys', async () => {
+    const db = await openStore(freshDbName())
+    const inflections: Record<string, string[]> = { constructor: ['run'] }
+
+    Object.defineProperty(inflections, '__proto__', { value: ['run'], enumerable: true })
+
+    for (let i = 0; i < 2000; i++) inflections[`form${i}`] = ['mouse']
+
+    await installDictionary(db, (await serveFixture()).manifest, { ...fixtureFile(), inflections })
+
+    const opened = (await Dictionary.open(db))!
+
+    for (const form of ['constructor', '__proto__']) {
+      expect((await opened.lookup(form))?.word).toBe('run')
+    }
+
+    for (const i of [0, 777, 1999]) {
+      expect((await opened.lookup(`form${i}`))?.word).toBe('mouse')
+    }
+
+    expect(await opened.lookup('form2000')).toBeUndefined()
+    expect(await opened.lookup('hasownproperty')).toBeUndefined()
+  })
+
   it('can be deleted', async () => {
     const db = await openStore(freshDbName())
     const { fetchFn, manifest } = await serveFixture()

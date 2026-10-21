@@ -5,8 +5,8 @@ import { defineConfig, minimal2023Preset } from '@vite-pwa/assets-generator/conf
 export default defineConfig({
   preset: {
     ...minimal2023Preset,
-    maskable: { sizes: [512], padding: 0.2, resizeOptions: { background: '#1f5fbf' } },
-    apple: { sizes: [180], padding: 0.2, resizeOptions: { background: '#1f5fbf' } },
+    maskable: { sizes: [512], padding: 0.2, resizeOptions: { background: '#8a3a2f' } },
+    apple: { sizes: [180], padding: 0.2, resizeOptions: { background: '#8a3a2f' } },
   },
   images: ['public/icon.svg'],
 })

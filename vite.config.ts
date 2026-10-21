@@ -60,8 +60,8 @@ export default defineConfig({
         name: 'Simple Dictionary',
         short_name: 'Dictionary',
         description: 'A simple, offline English dictionary.',
-        theme_color: '#1f5fbf',
-        background_color: '#ffffff',
+        theme_color: '#f6efe2',
+        background_color: '#f6efe2',
         display: 'standalone',
         start_url: base,
         scope: base,
@@ -70,7 +70,7 @@ export default defineConfig({
         // Only the small app shell is precached. The dictionary lives in
         // IndexedDB after the user opts in to the download, never in the
         // service worker cache.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         globIgnores: ['**/dictionary*'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,

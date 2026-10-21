@@ -1,3 +1,4 @@
+import GitHubIcon from '@mui/icons-material/GitHub'
 import Button from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
 import Dialog from '@mui/material/Dialog'
@@ -8,6 +9,8 @@ import Link from '@mui/material/Link'
 import Typography from '@mui/material/Typography'
 import licenses from '../../THIRD_PARTY_LICENSES?raw'
 import { toLicenseBlocks } from '../licenseBlocks.ts'
+
+const SOURCE_URL = 'https://github.com/jeremyckahn/simple-dictionary'
 
 const licenseBlocks = toLicenseBlocks(licenses)
 
@@ -21,19 +24,26 @@ export const CreditsDialog = ({ open, onClose }: Props) => (
     <DialogTitle>About Simple Dictionary</DialogTitle>
     <DialogContent dividers>
       <Typography gutterBottom>
+        A simple English dictionary that works offline. It is free software, released under the
+        GPL-2.0 license.
+      </Typography>
+      <Button
+        component="a"
+        variant="outlined"
+        href={SOURCE_URL}
+        target="_blank"
+        rel="noreferrer"
+        startIcon={<GitHubIcon />}
+        sx={{ mt: 1, mb: 3 }}
+      >
+        View the source code on GitHub
+      </Button>
+      <Typography gutterBottom>
         Definitions come from{' '}
         <Link href="https://wordnet.princeton.edu/" target="_blank" rel="noreferrer">
           Princeton University's WordNet
         </Link>
-        . Simple Dictionary is free software under the GPL-2.0 license; its{' '}
-        <Link
-          href="https://github.com/jeremyckahn/simple-dictionary"
-          target="_blank"
-          rel="noreferrer"
-        >
-          source code
-        </Link>{' '}
-        is on GitHub.
+        .
       </Typography>
       {licenseBlocks.map((block, i) =>
         block.kind === 'rule' ? (

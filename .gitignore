@@ -29,3 +29,7 @@ dist-ssr
 
 # Data pipeline: raw WordNet download cache
 .cache
+
+# Playwright
+test-results
+playwright-report

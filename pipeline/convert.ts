@@ -52,6 +52,7 @@ export const convert = (db: WordNetDb, wordnetVersion: string): DictionaryFile =
   return {
     format: DICTIONARY_FORMAT_VERSION,
     wordnet: wordnetVersion,
+    license: db.license,
     words,
     entries,
     inflections: generateInflections(db),

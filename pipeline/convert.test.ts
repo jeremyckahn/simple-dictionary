@@ -7,6 +7,10 @@ const dictionary = convert(parseWordNet(loadFixtureSources()), '3.0')
 const entry = (word: string) => dictionary.entries[dictionary.words.indexOf(word)]
 
 describe('convert', () => {
+  it('carries the license notice with the data', () => {
+    expect(dictionary.license).toBe(loadFixtureSources().license)
+  })
+
   it('lists unique lowercase headwords in sorted order, with parallel entries', () => {
     expect(dictionary.words).toEqual([
       'city of light',

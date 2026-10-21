@@ -29,6 +29,8 @@ export const ARCHIVE_LAYOUT = {
   dictDir: 'dict/',
   /** ...while the npm package ships the exception lists separately. */
   excDir: 'package/data/',
+  /** The Princeton license notice shipped with the package. */
+  license: 'package/LICENSE',
 } as const
 
 export const DICTIONARY_FORMAT_VERSION = 1

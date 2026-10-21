@@ -40,7 +40,7 @@ const fixture = (name: string) => readFileSync(new URL(name, FIXTURE_DIR), 'utf8
 
 /** The tiny WordNet-format fixture as parsed-ready source texts. */
 export const loadFixtureSources = (): WordNetSources => {
-  const sources = { data: {}, index: {}, exc: {} } as WordNetSources
+  const sources = { data: {}, index: {}, exc: {}, license: fixture('LICENSE') } as WordNetSources
   for (const pos of POS_LIST) {
     sources.data[pos] = fixture(`data.${SUFFIXES[pos]}`)
     sources.index[pos] = fixture(`index.${SUFFIXES[pos]}`)
@@ -58,5 +58,9 @@ export const makeFixtureArchive = (): Uint8Array => {
     dict[`dict/index.${suffix}`] = fixture(`index.${suffix}`)
     exc[`package/data/${suffix}.exc`] = fixture(`${suffix}.exc`)
   }
-  return makeTarGz({ 'package/WNdb-3.0.tar.gz': makeTarGz(dict), ...exc })
+  return makeTarGz({
+    'package/WNdb-3.0.tar.gz': makeTarGz(dict),
+    'package/LICENSE': fixture('LICENSE'),
+    ...exc,
+  })
 }

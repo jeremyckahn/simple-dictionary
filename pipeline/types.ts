@@ -21,6 +21,8 @@ export interface DictionaryFile {
   format: number
   /** Source WordNet release, e.g. "3.0". */
   wordnet: string
+  /** The WordNet license notice, which must accompany every copy of the data. */
+  license: string
   /**
    * Lowercase headwords (multi-word phrases use spaces), sorted ascending by
    * UTF-16 code unit order (the default `Array.prototype.sort` / `<` order),

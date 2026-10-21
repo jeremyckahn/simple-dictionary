@@ -18,7 +18,7 @@ export const extractSources = (archive: Uint8Array): WordNetSources => {
   if (!innerBytes) throw new Error(`Expected ${ARCHIVE_LAYOUT.innerTarball} in the archive`)
   const inner = readTarGz(innerBytes)
 
-  const sources = { data: {}, index: {}, exc: {} } as WordNetSources
+  const sources = { data: {}, index: {}, exc: {}, license: decode(outer, ARCHIVE_LAYOUT.license) } as WordNetSources
   for (const pos of POS_LIST) {
     const suffix = FILE_SUFFIX[pos]
     sources.data[pos] = decode(inner, `${ARCHIVE_LAYOUT.dictDir}data.${suffix}`)

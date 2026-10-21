@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run build:data",
+    "build:data": "node pipeline/build-data.ts",
     "lint": "oxlint",
-    "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^19.3.1",

@@ -26,6 +26,8 @@ export interface WordNetSources {
   index: Record<Pos, string>
   /** Contents of noun.exc etc. */
   exc: Record<Pos, string>
+  /** The WordNet license notice. */
+  license: string
 }
 
 export interface WordNetDb {
@@ -33,6 +35,7 @@ export interface WordNetDb {
   index: IndexEntry[]
   /** Exception list lines as `[inflected, bases]`, normalised. */
   exceptions: Record<Pos, Array<[string, string[]]>>
+  license: string
 }
 
 const synsetKey = (pos: Pos, offset: string) => `${pos}${offset}`
@@ -125,5 +128,5 @@ export const parseWordNet = (sources: WordNetSources): WordNetDb => {
     index.push(...parseIndex(sources.index[pos]))
     exceptions[pos] = parseExceptions(sources.exc[pos])
   }
-  return { synsets, index, exceptions }
+  return { synsets, index, exceptions, license: sources.license }
 }

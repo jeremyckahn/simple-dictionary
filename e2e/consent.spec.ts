@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { downloadDictionary, searchBox } from './helpers.ts'
+import { startReencodingServer } from './reencoding-server.ts'
 
 const dictionaryFile = '**/dictionary.*.bin'
 
@@ -20,25 +21,27 @@ test('declining explains why there is no search, and the user can change their m
 
   await page.getByRole('button', { name: /Download later/ }).click()
   await downloadDictionary(page)
-  expect(downloads).toBe(1)
+  expect(downloads).toBeGreaterThan(0)
 })
 
-test('resumes an interrupted download instead of restarting', async ({ page }) => {
-  const ranges: Array<string | undefined> = []
-  let first = true
+test('resumes an interrupted download without refetching finished parts', async ({ page }) => {
+  const requested: string[] = []
+  let truncated = false
 
   await page.route(dictionaryFile, async route => {
-    ranges.push(route.request().headers().range)
+    const file = new URL(route.request().url()).pathname.split('/').pop()!
 
-    if (!first) return route.continue()
+    requested.push(file)
 
-    first = false
+    // Cut the third part short, once.
+    if (!file.endsWith('.2.bin') || truncated) return route.continue()
 
-    // Deliver only the first 2 MB of the file, then end the response early.
+    truncated = true
+
     const response = await route.fetch()
     const body = await response.body()
 
-    await route.fulfill({ response, body: body.subarray(0, 2 * 1024 * 1024) })
+    await route.fulfill({ response, body: body.subarray(0, body.length / 2) })
   })
 
   await page.goto('./')
@@ -50,13 +53,42 @@ test('resumes an interrupted download instead of restarting', async ({ page }) =
   await page.getByRole('button', { name: 'Resume download' }).click()
 
   await expect(searchBox(page)).toBeVisible()
-  expect(ranges[0]).toBeUndefined()
-  expect(ranges[1]).toMatch(/^bytes=\d+-$/)
-  expect(Number(ranges[1]!.match(/\d+/)![0])).toBeGreaterThan(0)
+
+  const count = (suffix: string) => requested.filter(f => f.endsWith(suffix)).length
+
+  expect(count('.0.bin')).toBe(1)
+  expect(count('.1.bin')).toBe(1)
+  expect(count('.2.bin')).toBe(2)
 
   await searchBox(page).fill('ran')
   await searchBox(page).press('Enter')
   await expect(page.getByRole('heading', { level: 1, name: 'run' })).toBeVisible()
+})
+
+// GitHub Pages and Vercel compress downloads again on the fly for any client
+// that accepts gzip, and the browser undoes it. `vite preview` doesn't, so use
+// a server that behaves like those hosts.
+test('downloads correctly from a host that re-compresses the data files', async ({ page }) => {
+  const { server, url } = await startReencodingServer(process.env.BASE_PATH ?? '/')
+  const encodings: Array<string | undefined> = []
+
+  page.on('response', async response => {
+    if (/\.bin$/.test(response.url())) encodings.push(await response.headerValue('content-encoding') ?? undefined)
+  })
+
+  try {
+    await page.goto(url)
+    await downloadDictionary(page)
+    await searchBox(page).fill('ran')
+    await searchBox(page).press('Enter')
+    await expect(page.getByRole('heading', { level: 1, name: 'run' })).toBeVisible()
+  } finally {
+    server.close()
+  }
+
+  // The server really did re-encode, so this exercised the transparent decoding.
+  expect(encodings.length).toBeGreaterThan(1)
+  expect(encodings.every(e => e === 'gzip')).toBe(true)
 })
 
 test('cancelling a download returns to the consent screen without installing anything', async ({ page }) => {

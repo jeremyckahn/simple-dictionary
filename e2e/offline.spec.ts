@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { downloadDictionary, searchBox, waitForServiceWorker } from './helpers.ts'
 
-const isDictionaryFile = (url: string) => /\/dictionary\.[0-9a-f]+\.bin$/.test(new URL(url).pathname)
+const isDictionaryFile = (url: string) => /\/dictionary\.[0-9a-f]+\.\d+\.bin$/.test(new URL(url).pathname)
 
 test('asks before downloading, then works fully offline', async ({ page, context }) => {
   const dictionaryRequests: string[] = []
@@ -18,7 +18,10 @@ test('asks before downloading, then works fully offline', async ({ page, context
   expect(dictionaryRequests).toEqual([])
 
   await downloadDictionary(page)
-  expect(dictionaryRequests).toHaveLength(1)
+
+  const downloadRequests = dictionaryRequests.length
+
+  expect(downloadRequests).toBeGreaterThan(1)
 
   // Go offline and reload: the app shell comes from the service worker and the
   // dictionary from IndexedDB.
@@ -49,7 +52,7 @@ test('asks before downloading, then works fully offline', async ({ page, context
   await expect(page.getByRole('heading', { level: 1, name: 'mouse' })).toBeVisible()
 
   // Nothing was fetched from the network for any of this.
-  expect(dictionaryRequests).toHaveLength(1)
+  expect(dictionaryRequests).toHaveLength(downloadRequests)
 })
 
 test('keeps the dictionary in a new browser tab after the first download', async ({ page, context }) => {

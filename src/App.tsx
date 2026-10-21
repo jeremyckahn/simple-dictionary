@@ -1,6 +1,8 @@
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import Alert from '@mui/material/Alert'
 import AppBar from '@mui/material/AppBar'
+import InstallMobileIcon from '@mui/icons-material/InstallMobile'
+import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import Container from '@mui/material/Container'
 import CssBaseline from '@mui/material/CssBaseline'
@@ -10,6 +12,8 @@ import { ThemeProvider } from '@mui/material/styles'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import { useEffect, useState } from 'react'
+import { PwaPrompts } from './components/PwaPrompts.tsx'
+import { UpdateBanner } from './components/UpdateBanner.tsx'
 import { CreditsDialog } from './components/CreditsDialog.tsx'
 import { EntryView } from './components/EntryView.tsx'
 import { SearchBox } from './components/SearchBox.tsx'
@@ -20,15 +24,24 @@ import {
   ErrorScreen,
   LoadingScreen,
 } from './components/SetupScreens.tsx'
-import type { Dictionary, LookupResult } from './data/index.ts'
+import { type Dictionary, DictionaryChangedError, type LookupResult } from './data/index.ts'
 import { addRecent, loadRecent } from './recent.ts'
 import { theme } from './theme.ts'
 import { useDictionarySetup } from './useDictionarySetup.ts'
+import { useDictionaryUpdate } from './useDictionaryUpdate.ts'
+import { useInstallPrompt } from './useInstallPrompt.ts'
 import { useQuery } from './useQuery.ts'
 
 type Lookup = { query: string; result: LookupResult | undefined }
 
-const Search = ({ dictionary }: { dictionary: Dictionary }) => {
+interface SearchProps {
+  dictionary: Dictionary
+  /** Called when the stored dictionary changed under us; reopen it. */
+  onStale: () => Promise<void>
+}
+
+const Search = ({ dictionary, onStale }: SearchProps) => {
+  const update = useDictionaryUpdate(dictionary, onStale)
   const [query, setQuery] = useQuery()
   const [recent, setRecent] = useState(loadRecent)
   const [lookup, setLookup] = useState<Lookup>()
@@ -44,18 +57,26 @@ const Search = ({ dictionary }: { dictionary: Dictionary }) => {
       setLookup({ query, result })
 
       if (result) setRecent(addRecent(result.word))
+    }).catch(e => {
+      // An update replaced the data mid-lookup; reopening re-runs this lookup.
+      if (e instanceof DictionaryChangedError) void onStale()
     })
 
     return () => {
       stale = true
     }
-  }, [dictionary, query])
+  }, [dictionary, query, onStale])
 
   // Ignore a lookup that belongs to a previous query.
   const current = lookup?.query === query && query ? lookup : undefined
 
   return (
     <Stack spacing={3}>
+      <UpdateBanner
+        state={update.state}
+        onUpdate={() => void update.update()}
+        onDismiss={update.dismiss}
+      />
       <SearchBox dictionary={dictionary} value={query} recent={recent} onSearch={setQuery} />
       {current?.result && <EntryView result={current.result} onLookup={setQuery} />}
       {current && !current.result && (
@@ -73,7 +94,8 @@ const Search = ({ dictionary }: { dictionary: Dictionary }) => {
 }
 
 const App = () => {
-  const { state, download, cancel, decline, reconsider, retry } = useDictionarySetup()
+  const { state, download, cancel, decline, reconsider, retry, refresh } = useDictionarySetup()
+  const { canInstall, install } = useInstallPrompt()
   const [creditsOpen, setCreditsOpen] = useState(false)
 
   return (
@@ -84,6 +106,11 @@ const App = () => {
           <Typography variant="h6" component="p" sx={{ flexGrow: 1 }}>
             Simple Dictionary
           </Typography>
+          {canInstall && (
+            <Button startIcon={<InstallMobileIcon />} onClick={() => void install()}>
+              Install
+            </Button>
+          )}
           <IconButton aria-label="About and credits" onClick={() => setCreditsOpen(true)}>
             <InfoOutlinedIcon />
           </IconButton>
@@ -104,8 +131,9 @@ const App = () => {
           <DownloadingScreen manifest={state.manifest} receivedBytes={state.receivedBytes} onCancel={cancel} />
         )}
         {state.status === 'error' && <ErrorScreen message={state.message} onRetry={retry} />}
-        {state.status === 'ready' && <Search dictionary={state.dictionary} />}
+        {state.status === 'ready' && <Search dictionary={state.dictionary} onStale={refresh} />}
       </Container>
+      <PwaPrompts />
       <CreditsDialog open={creditsOpen} onClose={() => setCreditsOpen(false)} />
     </ThemeProvider>
   )

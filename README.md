@@ -1,40 +1,36 @@
-# React + TypeScript + Vite
+# Simple Dictionary
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A basic, fully offline, installable English dictionary (PWA). Type a word, see
+its definitions. The dictionary is downloaded to the device once, with the
+user's permission (about 8 MB), and then works with no network.
 
-Currently, two official plugins are available:
+- Data: Princeton [WordNet](https://wordnet.princeton.edu/) 3.0 (see
+  [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES)).
+- Stack: TypeScript, React, Vite, MUI, IndexedDB (`idb`), `vite-plugin-pwa`.
+- Design decisions and build order: [SPEC.md](SPEC.md).
+- License: GPL-2.0-only.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Development
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm install
+npm run build        # app + service worker + dictionary data into dist/
+npm run dev          # dev server (serves the dictionary from dist/, so build once first)
+npm run lint
+npm test             # unit and component tests (Vitest)
+npm run test:e2e     # end-to-end tests (Playwright), see below
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+`npm run build` also generates the offline dictionary data
+(see [pipeline/README.md](pipeline/README.md)); `npm run build:data` regenerates
+just the data. The icons are generated at build time from `public/icon.svg`;
+replace that one file to rebrand.
 
-## Dictionary data
+## End-to-end tests
 
-`npm run build` also generates the offline dictionary data file into `dist/`
-(see [pipeline/README.md](pipeline/README.md)). Run `npm run build:data` on its
-own to regenerate just the data, and `npm test` for the unit tests. Dictionary
-data is from Princeton University's WordNet; see
-[THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).
+`npm run test:e2e` builds the production app, serves it with `vite preview`,
+and drives it in Chromium: consent before download, download and install,
+resuming an interrupted download, then lookups (prefix suggestions, inflections,
+deep links, synonyms, back/forward) with the network turned off. Install the
+browser once with `npx playwright install chromium`, or point
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` at an existing Chromium.

@@ -10,7 +10,7 @@ test('asks before downloading, then works fully offline', async ({ page, context
     if (isDictionaryFile(request.url())) dictionaryRequests.push(request.url())
   })
 
-  await page.goto('/')
+  await page.goto('./')
 
   // Consent comes first, with the exact size; nothing is downloaded yet.
   await expect(page.getByText(/The download is\s+\d+(\.\d)? MB/)).toBeVisible()
@@ -38,7 +38,7 @@ test('asks before downloading, then works fully offline', async ({ page, context
   await expect(page).toHaveURL(/\?q=ran$/)
 
   // A deep link opened while offline.
-  await page.goto('/?q=mice')
+  await page.goto('./?q=mice')
   await expect(page.getByRole('heading', { level: 1, name: 'mouse' })).toBeVisible()
   await expect(searchBox(page)).toHaveValue('mice')
 
@@ -53,12 +53,12 @@ test('asks before downloading, then works fully offline', async ({ page, context
 })
 
 test('keeps the dictionary in a new browser tab after the first download', async ({ page, context }) => {
-  await page.goto('/')
+  await page.goto('./')
   await downloadDictionary(page)
 
   const second = await context.newPage()
 
-  await second.goto('/?q=dictionary')
+  await second.goto('./?q=dictionary')
   await expect(second.getByRole('heading', { level: 1, name: 'dictionary' })).toBeVisible()
   await expect(second.getByRole('button', { name: 'Download', exact: true })).toHaveCount(0)
 })

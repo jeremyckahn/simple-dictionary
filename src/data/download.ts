@@ -13,7 +13,11 @@ import {
   SUPPORTED_FORMAT,
 } from './types.ts'
 
-export const MANIFEST_PATH = '/dictionary-manifest.json'
+// The app may be served from a sub-path (e.g. GitHub Pages project sites), so
+// data URLs are relative to Vite's base rather than the domain root.
+const BASE = import.meta.env.BASE_URL
+
+export const MANIFEST_PATH = `${BASE}dictionary-manifest.json`
 
 /** Network chunks are coalesced to roughly this size before being persisted. */
 const PERSIST_EVERY_BYTES = 512 * 1024
@@ -88,7 +92,7 @@ export const downloadCompressed = async (
 
   if (receivedBytes < totalBytes) {
     const headers: HeadersInit = receivedBytes ? { Range: `bytes=${receivedBytes}-` } : {}
-    const response = await fetchFn(`/${manifest.file}`, { headers, signal })
+    const response = await fetchFn(`${BASE}${manifest.file}`, { headers, signal })
 
     if (receivedBytes && response.status === 200) {
       // The server ignored the range request; start over rather than corrupt.

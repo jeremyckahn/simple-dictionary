@@ -4,6 +4,8 @@ import { defineConfig } from '@playwright/test'
 // installed instead of the one from `npx playwright install chromium`.
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
 const port = 4173
+// Trailing slash matters: tests navigate relative to it (`page.goto('./')`).
+const base = process.env.BASE_PATH ?? '/'
 
 export default defineConfig({
   testDir: 'e2e',
@@ -15,14 +17,14 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
-    baseURL: `http://localhost:${port}`,
+    baseURL: `http://localhost:${port}${base}`,
     trace: 'retain-on-failure',
     launchOptions: executablePath ? { executablePath } : {},
   },
   // The production build is what ships (service worker included), so test that.
   webServer: {
     command: `npm run build && npx vite preview --port ${port} --strictPort`,
-    url: `http://localhost:${port}`,
+    url: `http://localhost:${port}${base}`,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
   },

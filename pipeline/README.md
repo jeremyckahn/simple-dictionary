@@ -4,14 +4,20 @@
 Princeton WordNet into the single file the app downloads. Output goes to
 `dist/` (or the directory given as the first argument):
 
-- `dictionary.<version>.bin` — the data, gzip level 9 (the `.bin` name is
-  deliberate: a `.gz` name makes many static hosts add `Content-Encoding:
-  gzip`, so browsers would decode the bytes before the app can verify, count or
-  resume them). `<version>` is the
-  first 16 hex digits of the SHA-256 of the uncompressed JSON.
-- `dictionary-manifest.json` — file name, version, SHA-256 of the JSON and of
-  the `.gz`, compressed and uncompressed byte sizes, and word, sense and
-  inflection counts.
+- `dictionary.<version>.<n>.bin` — the data: one gzip file (level 9) split into
+  consecutive parts of 1 MiB (9 files today). `<version>` is the first 16 hex
+  digits of the SHA-256 of the uncompressed JSON. Why parts: static hosts such as
+  GitHub Pages and Vercel re-compress downloads on the fly for any client that
+  accepts gzip (even `application/octet-stream`), and `fetch` cannot opt out.
+  The browser undoes it, so whole-file downloads are fine, but byte offsets
+  (`Range`) then refer to the re-encoded stream and cannot be used to resume.
+  Separate whole-file requests, each verified by its own SHA-256, work whatever
+  the host does, and resuming means skipping the parts already stored. The
+  `.bin` name (not `.gz`) stops dev servers from labelling the file as
+  `Content-Encoding: gzip` when it is not re-encoded.
+- `dictionary-manifest.json` — the list of parts (file, size, SHA-256), the
+  version, the SHA-256 of the JSON and of the whole gzip file, compressed and
+  uncompressed byte sizes, and word, sense and inflection counts.
 
 ## Source and verification
 
@@ -67,7 +73,7 @@ Plain JSON (see `types.ts` for the authoritative definition):
   non-words (`mouses`), exactly as WordNet's own morphy accepts them.
   Multi-word phrases only get inflections that appear in the exception lists.
 
-The compressed file is served as a plain download (not `Content-Encoding`),
-so the app decompresses it with `DecompressionStream('gzip')`. Brotli would be
+The app joins the verified parts and decompresses them with
+`DecompressionStream('gzip')`. Brotli would be
 about a third smaller but `DecompressionStream` does not support it
 everywhere yet.

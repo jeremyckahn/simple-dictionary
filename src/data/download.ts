@@ -10,6 +10,7 @@ import {
   type DictionaryFile,
   type DownloadProgress,
   type Manifest,
+  type ManifestPart,
   SUPPORTED_FORMAT,
 } from './types.ts'
 
@@ -18,9 +19,6 @@ import {
 const BASE = import.meta.env.BASE_URL
 
 export const MANIFEST_PATH = `${BASE}dictionary-manifest.json`
-
-/** Network chunks are coalesced to roughly this size before being persisted. */
-const PERSIST_EVERY_BYTES = 512 * 1024
 
 export class DownloadError extends Error {
   constructor(message: string) {
@@ -68,11 +66,67 @@ export interface DownloadOptions {
   fetchFn?: typeof fetch
 }
 
+const concat = (parts: Uint8Array[], length: number): Uint8Array<ArrayBuffer> => {
+  const out = new Uint8Array(length)
+  let offset = 0
+
+  for (const part of parts) {
+    out.set(part, offset)
+    offset += part.length
+  }
+
+  return out
+}
+
 /**
- * Downloads the dictionary file described by `manifest`, resuming from
- * whatever a previous attempt persisted. Aborting (via `signal`) keeps the
- * partial data so the next call continues where this one stopped.
- * Returns the verified compressed bytes.
+ * Fetches one whole part and checks its size and hash. Plain GETs only: hosts
+ * may transparently re-encode responses, which the browser undoes, but that
+ * makes byte ranges unusable; whole verified parts are immune to it.
+ */
+const fetchPart = async (
+  part: ManifestPart,
+  fetchFn: typeof fetch,
+  signal: AbortSignal | undefined,
+  onBytes: (received: number) => void
+): Promise<Uint8Array<ArrayBuffer>> => {
+  const response = await fetchFn(`${BASE}${part.file}`, { signal })
+
+  if (!response.ok) throw new DownloadError(`Download failed (${response.status})`)
+  if (!response.body) throw new DownloadError('Download failed (empty response)')
+
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let received = 0
+
+  for (;;) {
+    const { done, value } = await reader.read()
+
+    if (done) break
+
+    chunks.push(value)
+    received += value.length
+    onBytes(received)
+  }
+
+  if (received < part.bytes) {
+    throw new DownloadError('Download ended before all data was received')
+  }
+
+  const bytes = concat(chunks, received)
+
+  if (received !== part.bytes || (await sha256Hex(bytes)) !== part.sha256) {
+    throw new DownloadError('Downloaded data failed verification; please try again')
+  }
+
+  return bytes
+}
+
+/**
+ * Downloads the dictionary described by `manifest` part by part, resuming at
+ * the first part a previous attempt did not finish (each finished part is
+ * persisted). Aborting via `signal` or a network failure keeps the finished
+ * parts; the interrupted part is fetched again whole. Returns the verified
+ * compressed bytes.
  */
 export const downloadCompressed = async (
   db: DictionaryStore,
@@ -80,79 +134,26 @@ export const downloadCompressed = async (
   { signal, onProgress, fetchFn = fetch }: DownloadOptions = {}
 ): Promise<Uint8Array<ArrayBuffer>> => {
   const totalBytes = manifest.compressedBytes
+  const { parts } = manifest
   let partial = await getPartial(db)
 
-  if (partial && partial.version !== manifest.version) {
+  if (partial && (partial.version !== manifest.version || partial.partCount !== parts.length)) {
     await clearPartial(db)
     partial = undefined
   }
 
   let receivedBytes = partial?.receivedBytes ?? 0
-  let chunkIndex = partial?.chunkCount ?? 0
 
-  if (receivedBytes < totalBytes) {
-    const headers: HeadersInit = receivedBytes ? { Range: `bytes=${receivedBytes}-` } : {}
-    const response = await fetchFn(`${BASE}${manifest.file}`, { headers, signal })
+  onProgress?.({ receivedBytes, totalBytes })
 
-    if (receivedBytes && response.status === 200) {
-      // The server ignored the range request; start over rather than corrupt.
-      await clearPartial(db)
-      receivedBytes = 0
-      chunkIndex = 0
-    } else if (receivedBytes && response.status !== 206) {
-      throw new DownloadError(`Download failed (${response.status})`)
-    } else if (!receivedBytes && !response.ok) {
-      throw new DownloadError(`Download failed (${response.status})`)
-    }
+  for (let i = partial?.chunkCount ?? 0; i < parts.length; i++) {
+    const base = receivedBytes
+    const bytes = await fetchPart(parts[i], fetchFn, signal, received =>
+      onProgress?.({ receivedBytes: base + received, totalBytes })
+    )
 
-    if (!response.body) throw new DownloadError('Download failed (empty response)')
-
-    if (response.headers.get('Content-Encoding')) {
-      // The browser would have decoded the bytes, so sizes, hashes and resumes
-      // could not line up. Fail clearly instead of with a confusing mismatch.
-      throw new DownloadError('The server applied content encoding to the dictionary file')
-    }
-
-    onProgress?.({ receivedBytes, totalBytes })
-
-    const reader = response.body.getReader()
-    let pending: Uint8Array[] = []
-    let pendingBytes = 0
-
-    const flush = async () => {
-      if (!pendingBytes) return
-
-      const merged = new Uint8Array(pendingBytes)
-      let offset = 0
-
-      for (const part of pending) {
-        merged.set(part, offset)
-        offset += part.length
-      }
-
-      receivedBytes += pendingBytes
-      await putChunk(db, manifest.version, chunkIndex++, merged, receivedBytes)
-      pending = []
-      pendingBytes = 0
-    }
-
-    try {
-      for (;;) {
-        const { done, value } = await reader.read()
-
-        if (done) break
-
-        pending.push(value)
-        pendingBytes += value.length
-        onProgress?.({ receivedBytes: receivedBytes + pendingBytes, totalBytes })
-
-        if (pendingBytes >= PERSIST_EVERY_BYTES) await flush()
-      }
-    } finally {
-      // Persist what we have, including on abort or network failure, so the
-      // next attempt can resume.
-      await flush().catch(() => {})
-    }
+    receivedBytes += bytes.length
+    await putChunk(db, manifest.version, i, bytes, receivedBytes, parts.length)
   }
 
   const stored = await getPartial(db)

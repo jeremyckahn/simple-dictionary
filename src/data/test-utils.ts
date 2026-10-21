@@ -25,19 +25,35 @@ const gzip = async (data: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuff
     ).arrayBuffer()
   )
 
-/** Builds the compressed file and manifest the way the pipeline would. */
-const buildFixture = async (): Promise<{ manifest: Manifest; compressed: Uint8Array<ArrayBuffer> }> => {
+/** Small, so the tiny fixture file still splits into several parts. */
+export const FIXTURE_PART_BYTES = 100
+
+/** Builds the compressed parts and manifest the way the pipeline would. */
+const buildFixture = async (): Promise<{
+  manifest: Manifest
+  parts: Array<Uint8Array<ArrayBuffer>>
+}> => {
   const json = new TextEncoder().encode(JSON.stringify(fixtureFile()))
   const compressed = await gzip(json)
   const sha256 = await sha256Hex(json)
+  const version = sha256.slice(0, 16)
+  const parts = Array.from({ length: Math.ceil(compressed.length / FIXTURE_PART_BYTES) }, (_, i) =>
+    compressed.slice(i * FIXTURE_PART_BYTES, (i + 1) * FIXTURE_PART_BYTES)
+  )
 
   return {
-    compressed,
+    parts,
     manifest: {
       format: 1,
       wordnet: 'test',
-      version: sha256.slice(0, 16),
-      file: `dictionary.${sha256.slice(0, 16)}.bin`,
+      version,
+      parts: await Promise.all(
+        parts.map(async (bytes, i) => ({
+          file: `dictionary.${version}.${i}.bin`,
+          bytes: bytes.length,
+          sha256: await sha256Hex(bytes),
+        }))
+      ),
       compression: 'gzip',
       sha256,
       compressedSha256: await sha256Hex(compressed),
@@ -53,38 +69,46 @@ const buildFixture = async (): Promise<{ manifest: Manifest; compressed: Uint8Ar
 export interface Served {
   manifest: Manifest
   fetchFn: typeof fetch
-  /** Requests made, as `[url, Range header]`. */
-  requests: Array<[string, string | undefined]>
+  /** File names requested (parts only, not the manifest), in order. */
+  requests: string[]
 }
 
 /**
- * A fake origin serving the fixture's file. `failAfterBytes` makes the first
- * response die mid-stream; `ignoreRange` makes the server answer 200 always.
+ * A fake origin serving the fixture's parts. `failPart` makes the first
+ * request for that part die mid-stream; `corrupt` flips a bit in every part;
+ * `contentEncoding` adds a `Content-Encoding` header (browsers undo these
+ * transparently, so the bytes the app sees are unchanged).
  */
 export const serveFixture = async (
-  options: { failAfterBytes?: number; ignoreRange?: boolean; corrupt?: boolean; contentEncoding?: boolean } = {}
+  options: {
+    failPart?: { index: number; afterBytes: number }
+    corrupt?: boolean
+    contentEncoding?: boolean
+  } = {}
 ): Promise<Served> => {
-  const { manifest, compressed } = await buildFixture()
-  const data = options.corrupt ? compressed.map(b => b ^ 1) : compressed
-  const requests: Served['requests'] = []
+  const { manifest, parts } = await buildFixture()
+  const requests: string[] = []
   let failed = false
 
-  const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  const fetchFn = (async (input: RequestInfo | URL) => {
     const url = String(input)
-    const range = (init?.headers as Record<string, string> | undefined)?.Range
-
-    requests.push([url, range])
 
     if (url.endsWith('dictionary-manifest.json')) return Response.json(manifest)
 
-    const start = range && !options.ignoreRange ? Number(/bytes=(\d+)-/.exec(range)![1]) : 0
-    let body = data.slice(start)
+    const file = url.slice(url.lastIndexOf('/') + 1)
+    const index = manifest.parts.findIndex(p => p.file === file)
+
+    if (index === -1) return new Response('not found', { status: 404 })
+
+    requests.push(file)
+
+    let body = options.corrupt ? parts[index].map(b => b ^ 1) : parts[index]
     let failMidway = false
 
-    if (options.failAfterBytes !== undefined && !failed) {
+    if (options.failPart?.index === index && !failed) {
       failed = true
       failMidway = true
-      body = body.slice(0, options.failAfterBytes)
+      body = body.slice(0, options.failPart.afterBytes)
     }
 
     const stream = new ReadableStream<Uint8Array>({
@@ -100,7 +124,6 @@ export const serveFixture = async (
     })
 
     return new Response(stream, {
-      status: start ? 206 : 200,
       headers: options.contentEncoding ? { 'Content-Encoding': 'gzip' } : {},
     })
   }) as typeof fetch

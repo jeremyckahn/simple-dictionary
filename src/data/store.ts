@@ -23,8 +23,10 @@ export const ENTRIES_PER_BLOCK = 256
 
 export interface PartialDownload {
   version: string
-  /** Number of chunk records written so far. */
+  /** Number of leading parts fully downloaded, verified and stored. */
   chunkCount: number
+  /** Total number of parts in the download this belongs to. */
+  partCount: number
   receivedBytes: number
 }
 
@@ -81,14 +83,15 @@ export const putChunk = async (
   version: string,
   index: number,
   data: Uint8Array,
-  receivedBytes: number
+  receivedBytes: number,
+  partCount: number
 ): Promise<void> => {
   const tx = db.transaction(['chunks', 'meta'], 'readwrite')
 
   await Promise.all([
     tx.objectStore('chunks').put(data, `${version}:${index}`),
     tx.objectStore('meta').put(
-      { version, chunkCount: index + 1, receivedBytes } satisfies PartialDownload,
+      { version, chunkCount: index + 1, partCount, receivedBytes } satisfies PartialDownload,
       'partial'
     ),
     tx.done,

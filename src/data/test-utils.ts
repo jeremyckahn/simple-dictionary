@@ -37,7 +37,7 @@ const buildFixture = async (): Promise<{ manifest: Manifest; compressed: Uint8Ar
       format: 1,
       wordnet: 'test',
       version: sha256.slice(0, 16),
-      file: `dictionary.${sha256.slice(0, 16)}.json.gz`,
+      file: `dictionary.${sha256.slice(0, 16)}.bin`,
       compression: 'gzip',
       sha256,
       compressedSha256: await sha256Hex(compressed),
@@ -62,7 +62,7 @@ export interface Served {
  * response die mid-stream; `ignoreRange` makes the server answer 200 always.
  */
 export const serveFixture = async (
-  options: { failAfterBytes?: number; ignoreRange?: boolean; corrupt?: boolean } = {}
+  options: { failAfterBytes?: number; ignoreRange?: boolean; corrupt?: boolean; contentEncoding?: boolean } = {}
 ): Promise<Served> => {
   const { manifest, compressed } = await buildFixture()
   const data = options.corrupt ? compressed.map(b => b ^ 1) : compressed
@@ -99,7 +99,10 @@ export const serveFixture = async (
       },
     })
 
-    return new Response(stream, { status: start ? 206 : 200 })
+    return new Response(stream, {
+      status: start ? 206 : 200,
+      headers: options.contentEncoding ? { 'Content-Encoding': 'gzip' } : {},
+    })
   }) as typeof fetch
 
   return { manifest, fetchFn, requests }

@@ -8,7 +8,10 @@ export interface Manifest {
   wordnet: string
   /** Content version: first 16 hex digits of `sha256`. Changes iff the data does. */
   version: string
-  /** File name next to the manifest, e.g. `dictionary.<version>.json.gz`. */
+  /** File name next to the manifest, e.g. `dictionary.<version>.bin`.
+   * Deliberately not `.gz`: static hosts and dev servers map `.gz` to
+   * `Content-Encoding: gzip`, which makes browsers decode the bytes before the
+   * app can verify, count or resume them. */
   file: string
   compression: 'gzip'
   /** SHA-256 of the uncompressed JSON the version derives from. */
@@ -39,7 +42,7 @@ export const buildOutput = (dictionary: DictionaryFile): BuiltOutput => {
   const sha256 = sha256Hex(json)
   const version = sha256.slice(0, 16)
   const compressed = new Uint8Array(gzipSync(json, { level: 9 }))
-  const fileName = `dictionary.${version}.json.gz`
+  const fileName = `dictionary.${version}.bin`
 
   return {
     fileName,

@@ -106,6 +106,15 @@ describe('downloadAndInstall', () => {
     expect(fresh.requests[0][1]).toBeUndefined()
   })
 
+  it('fails clearly when a server applies content encoding to the file', async () => {
+    const served = await serveFixture({ contentEncoding: true })
+    const db = await openStore(freshDbName())
+
+    await expect(
+      downloadAndInstall(db, served.manifest, { fetchFn: served.fetchFn })
+    ).rejects.toThrow(/content encoding/)
+  })
+
   it('rejects corrupt data and leaves nothing installed or partial', async () => {
     const served = await serveFixture({ corrupt: true })
     const db = await openStore(freshDbName())

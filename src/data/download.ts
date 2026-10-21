@@ -103,6 +103,12 @@ export const downloadCompressed = async (
 
     if (!response.body) throw new DownloadError('Download failed (empty response)')
 
+    if (response.headers.get('Content-Encoding')) {
+      // The browser would have decoded the bytes, so sizes, hashes and resumes
+      // could not line up. Fail clearly instead of with a confusing mismatch.
+      throw new DownloadError('The server applied content encoding to the dictionary file')
+    }
+
     onProgress?.({ receivedBytes, totalBytes })
 
     const reader = response.body.getReader()

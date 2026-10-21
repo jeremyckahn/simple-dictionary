@@ -42,8 +42,13 @@ const serveBuiltDictionary = (): Plugin => ({
   },
 })
 
+// Where the app is served. "/" for Vercel and local use; the GitHub Pages
+// workflow sets BASE_PATH to the project sub-path (e.g. "/simple-dictionary/").
+const base = process.env.BASE_PATH ?? '/'
+
 // https://vite.dev/config/
 export default defineConfig({
+  base,
   plugins: [
     react(),
     serveBuiltDictionary(),
@@ -58,8 +63,8 @@ export default defineConfig({
         theme_color: '#1f5fbf',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
       },
       workbox: {
         // Only the small app shell is precached. The dictionary lives in

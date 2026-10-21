@@ -11,7 +11,7 @@ test('declining explains why there is no search, and the user can change their m
 
     return route.continue()
   })
-  await page.goto('/')
+  await page.goto('./')
   await page.getByRole('button', { name: 'Not now' }).click()
 
   await expect(page.getByText(/can't search until/)).toBeVisible()
@@ -41,7 +41,7 @@ test('resumes an interrupted download instead of restarting', async ({ page }) =
     await route.fulfill({ response, body: body.subarray(0, 2 * 1024 * 1024) })
   })
 
-  await page.goto('/')
+  await page.goto('./')
   await page.getByRole('button', { name: 'Download', exact: true }).click()
   await expect(page.getByText(/ended before all data was received/)).toBeVisible()
 
@@ -65,7 +65,7 @@ test('cancelling a download returns to the consent screen without installing any
     await new Promise(resolve => setTimeout(resolve, 1500))
     await route.continue()
   })
-  await page.goto('/')
+  await page.goto('./')
   await page.getByRole('button', { name: 'Download', exact: true }).click()
   await expect(page.getByRole('progressbar', { name: 'Download progress' })).toBeVisible()
   await page.getByRole('button', { name: 'Cancel' }).click()

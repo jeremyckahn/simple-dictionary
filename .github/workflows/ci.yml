@@ -29,9 +29,16 @@ jobs:
       - run: npm test
 
   e2e:
-    name: End-to-end tests
+    name: End-to-end tests (base ${{ matrix.base }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # "/" is how Vercel serves the app; the sub-path is how GitHub Pages does.
+        base: ['/', '/simple-dictionary/']
+    env:
+      BASE_PATH: ${{ matrix.base }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,6 +59,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-traces
+          name: playwright-traces-${{ strategy.job-index }}
           path: test-results
           retention-days: 7

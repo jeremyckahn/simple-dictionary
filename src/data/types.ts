@@ -8,11 +8,17 @@ export type {
 } from '../../pipeline/types.ts'
 
 /** Mirrors `Manifest` in pipeline/output.ts (the JSON the build emits). */
+export interface ManifestPart {
+  file: string
+  bytes: number
+  sha256: string
+}
+
 export interface Manifest {
   format: number
   wordnet: string
   version: string
-  file: string
+  parts: ManifestPart[]
   compression: 'gzip'
   sha256: string
   compressedSha256: string

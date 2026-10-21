@@ -8,10 +8,10 @@ import type { Entry, Manifest } from './data/index.ts'
 const manifest = {
   format: 1,
   version: 'v1',
-  file: 'dictionary.v1.bin',
+  parts: [],
   compressedBytes: 8_725_231,
   wordCount: 147_306,
-} as Manifest
+} as unknown as Manifest
 
 const entries: Record<string, Entry> = {
   run: [['v', [['move fast by using legs', ['The children ran to the store'], ['sprint']], ['operate', [], []]]]],

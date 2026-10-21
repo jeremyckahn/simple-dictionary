@@ -10,7 +10,7 @@ License: GPL-2.0-only. Dictionary data: Princeton WordNet (see Credits).
 
 | Area | Decision |
 |---|---|
-| **Data** | Princeton WordNet, pinned to a specific version and verified by SHA-256. Converted at build time into a single compressed, content-hashed file (e.g. `dictionary.<hash>.json.gz`) emitted into `dist/`. The generated file is not committed. |
+| **Data** | Princeton WordNet 3.0, pinned and verified by SHA-256 (fetched from an npm tarball that bundles Princeton's database and morphology exception lists). Converted at build time into a single compressed, content-hashed file (e.g. `dictionary.<hash>.json.gz`) emitted into `dist/`. The generated file is not committed. |
 | **Entry view** | Word, then each part of speech with numbered definitions, example sentences (where they exist), and tappable synonym chips that trigger a lookup. No antonyms or related-word hierarchy in v1. No pronunciation or etymology (not in WordNet). |
 | **Search** | Case-insensitive prefix suggestions (about 10) as the user types. Inflected forms resolve to their base word ("ran" → "run", "mice" → "mouse", "running" → "run"); inflections are precomputed at build time, not computed in the browser. No typo-tolerance in v1 (possible later; it is a search-time feature and does not change the data format). |
 | **Download flow** | See below. |
@@ -42,11 +42,20 @@ License: GPL-2.0-only. Dictionary data: Princeton WordNet (see Credits).
 
 ## Data pipeline
 
-A script in the repo downloads the pinned WordNet release, verifies its SHA-256
+A script in the repo (`pipeline/`, run by `npm run build:data` and as part of
+`npm run build`) downloads the pinned WordNet 3.0 release, verifies its SHA-256
 (a mismatch fails the build), converts it, and writes the content-hashed output
-into `dist/`. The raw download is cached between Vercel builds. Output size is
-expected to be roughly 6–8 MB gzipped; the real number is measured in step 1 and
-shown on the consent screen.
+into `dist/` with a manifest. The raw download is cached in `.cache/` between
+builds. See `pipeline/README.md` for the source choice and the data format.
+
+Measured in step 1: 147,306 headwords, 206,941 senses and 161,139 inflected
+forms, 29.2 MiB of JSON, **8.7 MB (8.3 MiB) gzipped**. That is a little above
+the original 6–8 MB estimate, because definitions and examples are repeated for
+every lemma of a synset. Two ways to shrink it if the consent screen number
+matters later: share synset text between lemmas (about 7.0 MB gzipped, at the
+cost of a join when unpacking), or switch to brotli (about 5.6 MB, but
+`DecompressionStream` does not support it everywhere yet). The consent screen
+reads the exact size from the manifest.
 
 ## Build order
 

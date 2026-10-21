@@ -30,3 +30,11 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+
+## Dictionary data
+
+`npm run build` also generates the offline dictionary data file into `dist/`
+(see [pipeline/README.md](pipeline/README.md)). Run `npm run build:data` on its
+own to regenerate just the data, and `npm test` for the unit tests. Dictionary
+data is from Princeton University's WordNet; see
+[THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).

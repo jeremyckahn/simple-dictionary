@@ -26,16 +26,33 @@ describe('buildOutput', () => {
     expect(JSON.parse(json.toString('utf8'))).toEqual(dictionary)
   })
 
-  it('names the file after the content hash', () => {
+  it('names the files after the content hash', () => {
     const json = gunzipSync(output.compressed)
     expect(output.manifest.sha256).toBe(sha256Hex(json))
     expect(output.manifest.version).toBe(output.manifest.sha256.slice(0, 16))
-    expect(output.fileName).toBe(`dictionary.${output.manifest.version}.bin`)
+    expect(output.parts.map(p => p.fileName)).toEqual(
+      output.parts.map((_, i) => `dictionary.${output.manifest.version}.${i}.bin`)
+    )
+  })
+
+  it('splits the compressed data into verifiable consecutive parts', () => {
+    const split = buildOutput(dictionary, 100)
+
+    expect(split.parts.length).toBeGreaterThan(2)
+    expect(split.parts.slice(0, -1).every(p => p.bytes.length === 100)).toBe(true)
+    expect(split.manifest.parts).toEqual(
+      split.parts.map(p => ({ file: p.fileName, bytes: p.bytes.length, sha256: sha256Hex(p.bytes) }))
+    )
+    expect(Buffer.concat(split.parts.map(p => p.bytes))).toEqual(Buffer.from(split.compressed))
+    expect(split.manifest.compressedSha256).toBe(sha256Hex(split.compressed))
+  })
+
+  it('uses a single part for small data', () => {
+    expect(output.parts).toHaveLength(1)
   })
 
   it('reports exact sizes and counts in the manifest', () => {
     expect(output.manifest).toMatchObject({
-      file: output.fileName,
       compression: 'gzip',
       wordnet: '3.0',
       compressedBytes: output.compressed.length,
@@ -48,8 +65,8 @@ describe('buildOutput', () => {
   })
 
   it('is deterministic, and the version changes when the content does', () => {
-    expect(buildOutput(dictionary).fileName).toBe(output.fileName)
+    expect(buildOutput(dictionary).manifest.version).toBe(output.manifest.version)
     const changed = { ...dictionary, wordnet: '3.1' }
-    expect(buildOutput(changed).fileName).not.toBe(output.fileName)
+    expect(buildOutput(changed).manifest.version).not.toBe(output.manifest.version)
   })
 })

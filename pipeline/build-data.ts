@@ -16,16 +16,16 @@ const main = async () => {
   log('Parsing WordNet')
   const dictionary = convert(parseWordNet(extractSources(archive)), WORDNET_SOURCE.version)
 
-  const { fileName, compressed, manifest } = buildOutput(dictionary)
+  const { parts, manifest } = buildOutput(dictionary)
   await mkdir(outDir, { recursive: true })
-  await writeFile(path.join(outDir, fileName), compressed)
+  await Promise.all(parts.map(({ fileName, bytes }) => writeFile(path.join(outDir, fileName), bytes)))
   await writeFile(
     path.join(outDir, 'dictionary-manifest.json'),
     JSON.stringify(manifest, null, 2) + '\n'
   )
 
   const mb = (bytes: number) => (bytes / 1024 / 1024).toFixed(2)
-  log(`Wrote ${path.join(outDir, fileName)}`)
+  log(`Wrote ${parts.length} parts, ${path.join(outDir, parts[0].fileName)} …`)
   log(
     `${manifest.wordCount} words, ${manifest.senseCount} senses, ` +
       `${manifest.inflectionCount} inflected forms`

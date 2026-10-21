@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
+import { POS_LIST, type WordNetSources } from './wordnet.ts'
 
 const BLOCK = 512
 
@@ -30,3 +32,31 @@ export const makeTar = (files: Record<string, string | Uint8Array>): Uint8Array 
 
 export const makeTarGz = (files: Record<string, string | Uint8Array>) =>
   new Uint8Array(gzipSync(makeTar(files)))
+
+const FIXTURE_DIR = new URL('./__fixtures__/dict/', import.meta.url)
+const SUFFIXES = { n: 'noun', v: 'verb', a: 'adj', r: 'adv' } as const
+
+const fixture = (name: string) => readFileSync(new URL(name, FIXTURE_DIR), 'utf8')
+
+/** The tiny WordNet-format fixture as parsed-ready source texts. */
+export const loadFixtureSources = (): WordNetSources => {
+  const sources = { data: {}, index: {}, exc: {} } as WordNetSources
+  for (const pos of POS_LIST) {
+    sources.data[pos] = fixture(`data.${SUFFIXES[pos]}`)
+    sources.index[pos] = fixture(`index.${SUFFIXES[pos]}`)
+    sources.exc[pos] = fixture(`${SUFFIXES[pos]}.exc`)
+  }
+  return sources
+}
+
+/** The fixture packed into the same nested layout as the pinned archive. */
+export const makeFixtureArchive = (): Uint8Array => {
+  const dict: Record<string, string> = {}
+  const exc: Record<string, string> = {}
+  for (const suffix of Object.values(SUFFIXES)) {
+    dict[`dict/data.${suffix}`] = fixture(`data.${suffix}`)
+    dict[`dict/index.${suffix}`] = fixture(`index.${suffix}`)
+    exc[`package/data/${suffix}.exc`] = fixture(`${suffix}.exc`)
+  }
+  return makeTarGz({ 'package/WNdb-3.0.tar.gz': makeTarGz(dict), ...exc })
+}

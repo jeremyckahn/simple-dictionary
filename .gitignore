@@ -26,3 +26,6 @@ dist-ssr
 # Vercel
 .vercel
 .env*
+
+# Data pipeline: raw WordNet download cache
+.cache
